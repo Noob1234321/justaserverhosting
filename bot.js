@@ -7,7 +7,7 @@ app.get('/', (req, res) => res.send('Mumbledore is alive!'));
 app.listen(process.env.PORT || 3000, () => console.log('Web ping server ready.'));
 
 const config = {
-    host: 'justaserver.gg', 
+    host: 'justaserver.seedloaf.gg', 
     port: 25565,                           
     username: 'Mumbledore', 
     version: '1.20.4'
