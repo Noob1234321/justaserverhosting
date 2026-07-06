@@ -1,79 +1,54 @@
 const mineflayer = require('mineflayer');
-const express = require('express'); // 🌟 Added Express
+const express = require('express');
 
-// 🌟 Create a dummy web server so Render stays happy
+// Dummy web server for Render's free tier
 const app = express();
-app.get('/', (req, res) => res.send('Mumbledore is alive!'));
+app.get('/', (req, res) => res.send('Mumbledore is active!'));
 app.listen(process.env.PORT || 3000, () => console.log('Web ping server ready.'));
 
 const config = {
-    host: 'justaserver.seedloaf.gg', 
+    host: 'your-seedloaf-ip.seedloaf.gg', // Change this to your server IP
     port: 25565,                           
     username: 'Mumbledore', 
     version: '1.20.4'
 };
 
-// ... (Keep the rest of your 3x3 movement script exactly the same!)
-
 function startBot() {
-    console.log(`📡 Connecting Mumbledore with 3x3 movement loops...`);
+    console.log(`📡 Connecting Mumbledore in Static Collision-Free Mode...`);
     
     const bot = mineflayer.createBot({
         ...config,
         hideErrors: true,
-        physicsEnabled: true, // MUST be true for the bot to physically move forward/back
+        physicsEnabled: false, // Disables physics engine
         viewDistance: 'tiny'
     });
 
-    // Automatically suppress actionbar or title packets that could cause a crash
+    // Strip out core physics tracking to stop position sync errors
+    bot.on('inject_allowed', () => {
+        bot.physics = null; 
+    });
+
     bot.on('messagestr', (message, position) => {
         if (position === 'actionbar') return;
     });
 
     bot.on('spawn', () => {
-        console.log(`✅ ${bot.username} spawned! Ready to walk the perimeter.`);
+        console.log(`✅ ${bot.username} spawned safely inside the barrier box!`);
         
-        let stepCount = 0;
-
-        // 🌟 THE 3x3 PATTERN ROUTINE
-        // Every 3 seconds, the bot takes a step forward and occasionally turns or punches
-        const movementTimer = setInterval(() => {
+        // Safe arm swing loop to reset the AFK timer without moving or looking
+        const afkTimer = setInterval(() => {
             if (!bot.entity) return;
+            bot.swingArm();
+        }, 5000); 
 
-            // 1. Randomly swing the arm (punch)
-            if (Math.random() > 0.4) {
-                bot.swingArm();
-            }
-
-            // 2. Press 'forward' to move a tiny bit
-            bot.setControlState('forward', true);
-            
-            // Lift the forward key after 400 milliseconds so it doesn't sprint away
-            setTimeout(() => {
-                bot.setControlState('forward', false);
-                stepCount++;
-
-                // Every 3 steps (~3 blocks), pivot the yaw 90 degrees to complete a square wall
-                if (stepCount >= 3) {
-                    const currentYaw = bot.entity.yaw;
-                    // Add 90 degrees in radians (PI / 2) to turn smoothly
-                    bot.look(currentYaw + Math.PI / 2, 0, true);
-                    stepCount = 0; 
-                    console.log(`🧭 Completed edge. Turning 90 degrees...`);
-                }
-            }, 400);
-
-        }, 3000); // Trigger a step cycle every 3 seconds
-
-        // Clean up memory leaks if the bot gets kicked out
         bot.once('end', () => {
-            clearInterval(movementTimer);
+            clearInterval(afkTimer);
         });
     });
 
     bot.on('end', (reason) => {
-        console.log(`❌ Disconnected: ${reason}. Auto-reconnecting in 30s...`);
-        setTimeout(startBot, 30000); 
+        console.log(`❌ Disconnected: ${reason}. Auto-reconnecting in 60s...`);
+        setTimeout(startBot, 60000); // 1-minute delay to keep things stable
     });
 
     bot.on('error', (err) => {
@@ -81,7 +56,6 @@ function startBot() {
     });
 }
 
-// Global safety catch
 process.on('uncaughtException', (err) => {
     if (err.message.includes('socketClosed') || err.message.includes('Invalid move')) return;
     console.log(`🛡️ Handled core glitch: ${err.message}`);
